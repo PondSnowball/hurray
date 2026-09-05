@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>File Exporter</title>
+  <style>
+    :root {
+      --bg: #f4f5f7;
+      --card-bg: #ffffff;
+      --text: #172b4d;
+      --border: #dfe1e6;
+      --primary: #0052cc;
+      --primary-hover: #0065ff;
+      --danger: #de350b;
+      --danger-hover: #ff5630;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      padding: 12px;
+    }
+
+    .container {
+      background: var(--card-bg);
+      padding: 16px;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      width: 100%;
+      max-width: 600px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .field-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    label {
+      font-size: 0.875rem;
+      font-weight: 600;
+    }
+
+    textarea {
+      width: 100%;
+      height: 160px;
+      padding: 10px;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      resize: vertical;
+      font-family: monospace;
+      font-size: 0.9rem;
+    }
+
+    input, select {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      font-size: 1rem;
+      background-color: #fff;
+    }
+
+    .row {
+      display: flex;
+      gap: 12px;
+    }
+
+    .row > .field-group {
+      flex: 1;
+    }
+
+    /* Swipe Area Styling & Keyframe Pulse Animations */
+    .swipe-area {
+      padding: 14px;
+      border: 2px dashed var(--primary);
+      border-radius: 6px;
+      background: #deebff;
+      text-align: center;
+      user-select: none;
+      touch-action: pan-y;
+      cursor: ew-resize;
+      font-weight: bold;
+      color: var(--primary);
+    }
+
+    /* Snappy flash keyframes */
+    @keyframes flashGreen {
+      0% {
+        background-color: #2e7d32;
+        border-color: #1b5e20;
+        color: #ffffff;
+        box-shadow: 0 0 16px rgba(46, 125, 50, 0.9);
+      }
+      100% {
+        background-color: #deebff;
+        border-color: var(--primary);
+        color: var(--primary);
+        box-shadow: none;
+      }
+    }
+
+    @keyframes flashYellow {
+      0% {
+        background-color: #fbc02d;
+        border-color: #f57f17;
+        color: #000000;
+        box-shadow: 0 0 16px rgba(251, 192, 45, 0.9);
+      }
+      100% {
+        background-color: #deebff;
+        border-color: var(--primary);
+        color: var(--primary);
+        box-shadow: none;
+      }
+    }
+
+    .flash-green {
+      animation: flashGreen 0.15s ease-out;
+    }
+
+    .flash-yellow {
+      animation: flashYellow 0.15s ease-out;
+    }
+
+    .btn-group {
+      display: flex;
+      gap: 12px;
+      margin-top: 8px;
+    }
+
+    button {
+      flex: 1;
+      padding: 12px;
+      border: none;
+      border-radius: 4px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+
+    .btn-clear {
+      background-color: var(--danger);
+      color: white;
+    }
+
+    .btn-clear:hover {
+      background-color: var(--danger-hover);
+    }
+
+    .btn-download {
+      background-color: var(--primary);
+      color: white;
+    }
+
+    .btn-download:hover {
+      background-color: var(--primary-hover);
+    }
+
+    @media (max-width: 480px) {
+      body {
+        padding: 8px;
+      }
+      
+      .container {
+        padding: 14px;
+        gap: 12px;
+      }
+
+      .row {
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      .btn-group {
+        flex-direction: column;
+      }
+
+      textarea {
+        height: 140px;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <div class="field-group">
+      <label for="content">Content Area</label>
+      <textarea id="content" placeholder="Type or paste your content here..."></textarea>
+    </div>
+
+    <div class="row">
+      <div class="field-group">
+        <label for="projectName">Project Name</label>
+        <input type="text" id="projectName" value="MyProject" placeholder="e.g. App">
+      </div>
+
+      <div class="field-group">
+        <label for="fileType">File Type</label>
+        <select id="fileType">
+          <option value="txt">txt</option>
+          <option value="html">html</option>
+          <option value="css">css</option>
+          <option value="js">js</option>
+          <option value="md">md</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="field-group">
+      <label>Version Number (Swipe Left / Right)</label>
+      <div id="swipeArea" class="swipe-area">
+        Version: <span id="versionDisplay">1</span>
+      </div>
+    </div>
+
+    <div class="btn-group">
+      <button class="btn-clear" id="clearBtn">Clear Text</button>
+      <button class="btn-download" id="downloadBtn">Download File</button>
+    </div>
+  </div>
+
+  <script>
+    const contentTextarea = document.getElementById('content');
+    const projectNameInput = document.getElementById('projectName');
+    const fileTypeSelect = document.getElementById('fileType');
+    const swipeArea = document.getElementById('swipeArea');
+    const versionDisplay = document.getElementById('versionDisplay');
+    const clearBtn = document.getElementById('clearBtn');
+    const downloadBtn = document.getElementById('downloadBtn');
+
+    let version = 1;
+
+    function triggerGlow(direction) {
+      // Force DOM reflow to restart CSS animation immediately on rapid swipes
+      swipeArea.classList.remove('flash-green', 'flash-yellow');
+      void swipeArea.offsetWidth; 
+
+      const flashClass = direction === 'increase' ? 'flash-green' : 'flash-yellow';
+      swipeArea.classList.add(flashClass);
+    }
+
+    function updateVersion(change) {
+      if (change > 0) {
+        version += change;
+        versionDisplay.textContent = version;
+        triggerGlow('increase');
+      } else if (change < 0 && version > 1) {
+        version += change;
+        versionDisplay.textContent = version;
+        triggerGlow('decrease');
+      }
+    }
+
+    // Touch & Mouse Swipe logic
+    let startX = 0;
+    const minSwipeDistance = 30;
+
+    swipeArea.addEventListener('touchstart', (e) => {
+      startX = e.touches[0].clientX;
+    }, { passive: true });
+
+    swipeArea.addEventListener('touchend', (e) => {
+      const endX = e.changedTouches[0].clientX;
+      handleSwipe(startX, endX);
+    }, { passive: true });
+
+    swipeArea.addEventListener('mousedown', (e) => {
+      startX = e.clientX;
+      const onMouseUp = (upEvent) => {
+        handleSwipe(startX, upEvent.clientX);
+        window.removeEventListener('mouseup', onMouseUp);
+      };
+      window.addEventListener('mouseup', onMouseUp);
+    });
+
+    function handleSwipe(start, end) {
+      const distance = end - start;
+      if (Math.abs(distance) >= minSwipeDistance) {
+        if (distance > 0) {
+          updateVersion(1);  // Right swipe increments -> Green
+        } else {
+          updateVersion(-1); // Left swipe decrements -> Yellow
+        }
+      }
+    }
+
+    // Clear Button
+    clearBtn.addEventListener('click', () => {
+      contentTextarea.value = '';
+    });
+
+    // Download Button
+    downloadBtn.addEventListener('click', () => {
+      const content = contentTextarea.value;
+      const rawProjectName = projectNameInput.value.trim() || 'Project';
+      const safeProjectName = rawProjectName.replace(/[/\\?%*:|"<>]/g, '-');
+      const ext = fileTypeSelect.value;
+      const fileName = `${safeProjectName}-${version}.${ext}`;
+
+      const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = fileName;
+      link.click();
+      URL.revokeObjectURL(link.href);
+    });
+  </script>
+
+</body>
+</html>
