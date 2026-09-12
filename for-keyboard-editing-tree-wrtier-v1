@@ -1,807 +1,1217 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Tree & Immersive Editor</title>
-  <style>
-    :root {
-      --bg-color: #f5f5f7;
-      --panel-bg: #ffffff;
-      --text-color: #1d1d1f;
-      --border-color: #d2d2d7;
-      --active-bg: #e8e8ed;
-      --selected-bg: #007aff;
-      --selected-text: #ffffff;
-      --btn-bg: #e5e5ea;
-      --btn-hover: #d1d1d6;
-      --editor-bg: #ffffff;
-      --line-num-color: #8e8e93;
-    }
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Node Tree & Immersive Editor</title>
+    <style>
+        :root {
+          --bg-color: #f4f5f7;
+          --panel-bg: #ffffff;
+          --text-color: #172b4d;
+          --border-color: #dfe1e6;
+          --hover-bg: #ebecf0;
+          --active-bg: #e2e8f0;
+          --selected-bg: #deebff;
+          --selected-text: #0747a6;
+          --editing-bg: #e3fcef;
+          --editing-text: #006644;
+          --editor-bg: #ffffff;
+          --gutter-bg: #f8f9fa;
+          --gutter-text: #6b778c;
+          --btn-bg: #0052cc;
+          --btn-text: #ffffff;
+          --btn-secondary-bg: #f4f5f7;
+          --btn-secondary-text: #172b4d;
+          --btn-border: #c1c7d0;
+          --modal-overlay: rgba(9, 30, 66, 0.54);
 
-    [data-theme="dark"] {
-      --bg-color: #1e1e1e;
-      --panel-bg: #252526;
-      --text-color: #cccccc;
-      --border-color: #3c3c3c;
-      --active-bg: #37373d;
-      --selected-bg: #04395e;
-      --selected-text: #ffffff;
-      --btn-bg: #333333;
-      --btn-hover: #444444;
-      --editor-bg: #1e1e1e;
-      --line-num-color: #858585;
-    }
+          /* RAINBOW FOLD COLORS */
+		  --fold-color-0: #00af00; /* Green */
+          --fold-color-1: #000000; /* Black */
+          --fold-color-2: #0060ff; /* Cyan */
+          --fold-color-3: #ff0000; /* Red */
+        }
 
-    * { box-sizing: border-box; margin: 0; padding: 0; }
+        [data-theme="dark"] {
+          --bg-color: #1d2125;
+          --panel-bg: #22272b;
+          --text-color: #adbac7;
+          --border-color: #373e47;
+          --hover-bg: #2c333a;
+          --active-bg: #323940;
+          --selected-bg: #1c3b5e;
+          --selected-text: #58a6ff;
+          --editing-bg: #1b3d2f;
+          --editing-text: #57ab5a;
+          --editor-bg: #22272b;
+          --gutter-bg: #1c2128;
+          --gutter-text: #768390;
+          --btn-bg: #238636;
+          --btn-text: #ffffff;
+          --btn-secondary-bg: #2c333a;
+          --btn-secondary-text: #adbac7;
+          --btn-border: #444c56;
+          --modal-overlay: rgba(0, 0, 0, 0.7);
 
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-      background-color: var(--bg-color);
-      color: var(--text-color);
-      height: 100vh;
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
-    }
+          /* Dark mode rainbow adjustments */
+          --fold-color-0: #ffffff; /* White (Black inverted) */
+          --fold-color-1: #00ffff; /* Cyan */
+          --fold-color-2: #ff0000; /* Red */
+          --fold-color-3: #00ff00; /* Green */
+        }
 
-    /* Top Toolbar */
-    #toolbar {
-      background-color: var(--panel-bg);
-      border-bottom: 1px solid var(--border-color);
-      padding: 6px 12px;
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-      align-items: center;
-      user-select: none;
-      z-index: 10;
-    }
+        * {
+          box-sizing: border-box;
+          margin: 0;
+          padding: 0;
+        }
 
-    .toolbar-group {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      padding-right: 10px;
-      border-right: 1px solid var(--border-color);
-    }
-    .toolbar-group:last-child { border-right: none; }
+        body {
+          font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+          background-color: var(--bg-color);
+          color: var(--text-color);
+          height: 100vh;
+          display: flex;
+          flex-direction: column;
+          overflow: hidden;
+          user-select: none;
+        }
 
-    button {
-      background-color: var(--btn-bg);
-      color: var(--text-color);
-      border: 1px solid var(--border-color);
-      padding: 4px 8px;
-      border-radius: 4px;
-      font-size: 12px;
-      cursor: pointer;
-      white-space: nowrap;
-    }
-    button:hover:not(:disabled) { background-color: var(--btn-hover); }
-    button:disabled { opacity: 0.4; cursor: not-allowed; }
+        /* TOP BUTTON PANEL */
+        #top-panel {
+          background-color: var(--panel-bg);
+          border-bottom: 1px solid var(--border-color);
+          padding: 6px 12px;
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
+          flex-shrink: 0;
+          z-index: 10;
+        }
 
-    label {
-      font-size: 12px;
-      display: flex;
-      align-items: center;
-      gap: 4px;
-      cursor: pointer;
-      white-space: nowrap;
-    }
+        .panel-row {
+          display: flex;
+          flex-wrap: wrap;
+          align-items: center;
+          gap: 10px;
+        }
 
-    /* Main Container */
-    #main-container {
-      display: flex;
-      flex: 1;
-      height: calc(100vh - 70px);
-      overflow: hidden;
-    }
+        .panel-group {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          border-right: 1px solid var(--border-color);
+          padding-right: 10px;
+        }
 
-    /* Left Navigation Tree Pane */
-    #left-pane {
-      width: 300px;
-      min-width: 200px;
-      background-color: var(--panel-bg);
-      border-right: 1px solid var(--border-color);
-      overflow-y: auto;
-      padding: 8px 0;
-    }
+        .panel-group:last-child {
+          border-right: none;
+        }
 
-    .tree-node-wrapper {
-      user-select: none;
-    }
+        button {
+          background-color: var(--btn-secondary-bg);
+          color: var(--btn-secondary-text);
+          border: 1px solid var(--btn-border);
+          padding: 4px 8px;
+          border-radius: 3px;
+          font-size: 12px;
+          cursor: pointer;
+          display: inline-flex;
+          align-items: center;
+          gap: 4px;
+          white-space: nowrap;
+        }
 
-    .tree-node {
-      display: flex;
-      align-items: center;
-      padding: 4px 8px;
-      cursor: pointer;
-      font-size: 13px;
-    }
-    .tree-node:hover { background-color: var(--active-bg); }
-    .tree-node.selected {
-      background-color: var(--selected-bg);
-      color: var(--selected-text);
-    }
+        button:hover:not(:disabled) {
+          background-color: var(--hover-bg);
+        }
 
-    .toggle-icon {
-      width: 16px;
-      text-align: center;
-      display: inline-block;
-      margin-right: 4px;
-      font-size: 10px;
-    }
+        button:disabled {
+          opacity: 0.4;
+          cursor: not-allowed;
+        }
 
-    .node-children {
-      padding-left: 16px;
-      display: none;
-    }
-    .node-children.expanded { display: block; }
+        button.primary {
+          background-color: var(--btn-bg);
+          color: var(--btn-text);
+          border: none;
+        }
 
-    .empty-tree-msg {
-      padding: 12px;
-      font-style: italic;
-      color: var(--line-num-color);
-      font-size: 13px;
-    }
+        label {
+          font-size: 12px;
+          display: inline-flex;
+          align-items: center;
+          gap: 4px;
+          cursor: pointer;
+          white-space: nowrap;
+        }
 
-    /* Right Editor Pane */
-    #right-pane {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      background-color: var(--editor-bg);
-      position: relative;
-      overflow: hidden;
-    }
+        /* MAIN CONTAINER */
+        #main-container {
+          display: flex;
+          flex: 1;
+          height: calc(100vh - 80px);
+          overflow: hidden;
+        }
 
-    .placeholder-msg {
-      margin: auto;
-      font-size: 16px;
-      color: var(--line-num-color);
-      user-select: none;
-    }
+        /* LEFT NAVIGATION TREE PANE */
+        #left-pane {
+          width: 320px;
+          min-width: 200px;
+          background-color: var(--panel-bg);
+          border-right: 1px solid var(--border-color);
+          overflow-y: auto;
+          overflow-x: auto;
+          outline: none;
+          padding: 12px;
+          position: relative;
+        }
 
-    #editor-container {
-      display: flex;
-      width: 100%;
-      height: 100%;
-      overflow: hidden;
-    }
+        #left-pane:focus {
+          box-shadow: inset 0 0 0 2px var(--btn-bg);
+        }
 
-    #line-numbers {
-      width: 45px;
-      background-color: var(--panel-bg);
-      border-right: 1px solid var(--border-color);
-      color: var(--line-num-color);
-      font-family: monospace;
-      font-size: 13px;
-      line-height: 1.5;
-      padding: 8px 4px;
-      text-align: right;
-      user-select: none;
-      overflow: hidden;
-    }
+        .empty-tree-msg {
+          padding: 16px;
+          font-style: italic;
+          color: var(--gutter-text);
+          font-size: 13px;
+          text-align: center;
+        }
 
-    #editor {
-      flex: 1;
-      width: 100%;
-      height: 100%;
-      border: none;
-      outline: none;
-      padding: 8px;
-      font-family: monospace;
-      font-size: 13px;
-      line-height: 1.5;
-      background-color: var(--editor-bg);
-      color: var(--text-color);
-      resize: none;
-      white-space: pre;
-      overflow: auto;
-    }
-    #editor.wrap { white-space: pre-wrap; word-break: break-word; }
+        /* TREE STRUCTURE & CONNECTED FOLD LINES */
+        ul.tree-group {
+          list-style: none;
+          position: relative;
+          padding-left: 0;
+          margin: 0;
+        }
 
-    /* Modal Dialog */
-    .modal-overlay {
-      position: fixed;
-      top: 0; left: 0; width: 100vw; height: 100vh;
-      background: rgba(0,0,0,0.4);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: 100;
-    }
-    .modal-overlay.hidden { display: none; }
+        /* Sub-levels indent and inherit colorful fold lines */
+        ul.tree-group ul.tree-group {
+          padding-left: 18px;
+        }
 
-    .modal {
-      background: var(--panel-bg);
-      border: 1px solid var(--border-color);
-      padding: 16px;
-      border-radius: 6px;
-      width: 350px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-    }
-    .modal h3 { font-size: 14px; margin-bottom: 12px; }
-    .modal-field { margin-bottom: 12px; }
-    .modal-field label { display: block; margin-bottom: 4px; }
-    .modal-field input[type="text"] {
-      width: 100%;
-      padding: 6px;
-      border: 1px solid var(--border-color);
-      background: var(--editor-bg);
-      color: var(--text-color);
-      border-radius: 4px;
-    }
-    .modal-radios { display: flex; gap: 12px; margin-bottom: 16px; }
-    .modal-actions { display: flex; justify-content: flex-end; gap: 8px; }
+        li.tree-node-li {
+          position: relative;
+          margin: 0;
+          padding: 1px 0;
+        }
 
-    .hidden { display: none !important; }
-  </style>
+        /* Continuous vertical trunk line connecting children */
+        ul.tree-group ul.tree-group > li.tree-node-li::before {
+          content: '';
+          position: absolute;
+          left: -11px;
+          top: 0;
+          bottom: 0;
+          width: 2px;
+          background-color: var(--fold-color);
+        }
+
+        /* Top truncation of trunk for first child */
+        ul.tree-group ul.tree-group > li.tree-node-li:first-child::before {
+          top: 0px;
+        }
+
+        /* Bottom truncation of trunk for last child (ends at branch) */
+        ul.tree-group ul.tree-group > li.tree-node-li:last-child::before {
+          height: 12px;
+          bottom: auto;
+        }
+
+        /* Horizontal branch line connecting trunk to node */
+        ul.tree-group ul.tree-group > li.tree-node-li::after {
+          content: '';
+          position: absolute;
+          left: -11px;
+          top: 12px;
+          width: 9px;
+          height: 2px;
+          background-color: var(--fold-color);
+          border-bottom-left-radius: 2px;
+        }
+
+        .tree-node-content {
+          display: flex;
+          align-items: center;
+          padding: 3px 6px;
+          border-radius: 3px;
+          font-size: 13px;
+          cursor: pointer;
+          gap: 4px;
+          position: relative;
+          z-index: 1;
+        }
+
+        .tree-node-content:hover {
+          background-color: var(--hover-bg);
+        }
+
+        .tree-node-content.selected {
+          background-color: var(--selected-bg);
+          color: var(--selected-text);
+          font-weight: 600;
+        }
+
+        .tree-node-content.editing {
+          border: 1px dashed var(--editing-text);
+        }
+
+        .tree-expander {
+          width: 14px;
+          height: 14px;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 10px;
+          color: var(--text-color);
+          flex-shrink: 0;
+        }
+
+        .node-label {
+          flex: 1;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+
+        .node-tag {
+          font-size: 10px;
+          background-color: var(--editing-bg);
+          color: var(--editing-text);
+          padding: 1px 4px;
+          border-radius: 3px;
+          font-weight: bold;
+        }
+
+        .node-input {
+          font-size: 13px;
+          padding: 1px 4px;
+          border: 1px solid var(--btn-bg);
+          border-radius: 2px;
+          width: 100%;
+          outline: none;
+        }
+
+        /* DRAG & DROP UI */
+        .tree-node-content.drag-over {
+          background-color: var(--active-bg);
+          outline: 1px dashed var(--btn-bg);
+        }
+
+        /* RIGHT EDITOR PANE */
+        #right-pane {
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+          background-color: var(--editor-bg);
+          position: relative;
+          overflow: hidden;
+        }
+
+        #editor-status {
+          padding: 12px 16px;
+          font-size: 14px;
+          color: var(--gutter-text);
+          font-style: italic;
+        }
+
+        #editor-container {
+          display: flex;
+          flex: 1;
+          height: 100%;
+          position: relative;
+          overflow: hidden;
+        }
+
+        #line-numbers {
+          width: 45px;
+          background-color: var(--gutter-bg);
+          color: var(--gutter-text);
+          border-right: 1px solid var(--border-color);
+          font-family: monospace;
+          font-size: 13px;
+          line-height: 1.5;
+          padding: 10px 4px;
+          text-align: right;
+          user-select: none;
+          overflow: hidden;
+          flex-shrink: 0;
+          display: block;
+        }
+
+        #editor {
+          flex: 1;
+          border: none;
+          outline: none;
+          padding: 10px;
+          font-family: monospace;
+          font-size: 13px;
+          line-height: 1.5;
+          background-color: var(--editor-bg);
+          color: var(--text-color);
+          resize: none;
+          white-space: pre;
+          overflow: auto;
+          user-select: text;
+        }
+
+        #editor.word-wrap {
+          white-space: pre-wrap;
+          word-wrap: break-word;
+        }
+
+        #editor[readonly] {
+          background-color: var(--bg-color);
+        }
+
+        /* MODAL DIALOGS */
+        .modal-overlay {
+          position: fixed;
+          top: 0;
+          left: 0;
+          width: 100vw;
+          height: 100vh;
+          background: var(--modal-overlay);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 1000;
+        }
+
+        .modal-overlay.hidden {
+          display: none;
+        }
+
+        .modal-box {
+          background: var(--panel-bg);
+          border: 1px solid var(--border-color);
+          border-radius: 6px;
+          width: 380px;
+          padding: 16px;
+          box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+        }
+
+        .modal-title {
+          font-size: 15px;
+          font-weight: bold;
+        }
+
+        .modal-field {
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+        }
+
+        .modal-field input[type="text"] {
+          padding: 6px 8px;
+          border: 1px solid var(--border-color);
+          border-radius: 3px;
+          background: var(--editor-bg);
+          color: var(--text-color);
+          outline: none;
+        }
+
+        .modal-options {
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
+          font-size: 13px;
+        }
+
+        .modal-actions {
+          display: flex;
+          justify-content: flex-end;
+          gap: 8px;
+          margin-top: 8px;
+        }
+    </style>
 </head>
-<body>
+<body data-theme="light">
 
-  <!-- Top Toolbar -->
-  <div id="toolbar">
-    <!-- View / State Controls -->
-    <div class="toolbar-group">
-      <button id="theme-toggle">Theme: Dark</button>
-      <label><input type="checkbox" id="chk-auto-open"> Auto open when clicked</label>
+<!-- TOP BUTTON PANEL -->
+<div id="top-panel">
+    <!-- ROW 1: DISPLAY & VIEW CONTROLS -->
+    <div class="panel-row">
+        <div class="panel-group">
+            <button id="btn-theme-toggle">🌙 Dark Mode</button>
+            <button id="btn-mode-toggle">👁 View Mode</button>
+        </div>
+
+        <div class="panel-group">
+            <label><input type="checkbox" id="chk-auto-open"> Auto open when clicked</label>
+            <label><input type="checkbox" id="chk-caps-scroll"> Link CapsLock to sidescroll</label>
+            <label><input type="checkbox" id="chk-word-wrap"> Word Wrap</label>
+            <label><input type="checkbox" id="chk-line-numbers" checked> Line Numbers</label>
+        </div>
+
+        <div class="panel-group">
+            <label><input type="checkbox" id="chk-dnd"> Restructure D&D</label>
+            <label><input type="checkbox" id="chk-del-warn" checked> Delete Warning</label>
+        </div>
     </div>
 
-    <div class="toolbar-group">
-      <button id="btn-edit-view">Mode: Edit</button>
-      <label><input type="checkbox" id="chk-caps-scroll"> Link CapsLock to SideScroll</label>
-      <label><input type="checkbox" id="chk-word-wrap"> Word Wrap</label>
-      <label><input type="checkbox" id="chk-line-nums" checked> Line Numbers</label>
+    <!-- ROW 2: NODE & FILE OPERATIONS -->
+    <div class="panel-row">
+        <div class="panel-group">
+            <button id="btn-add-root" class="primary">+ RootNode</button>
+            <button id="btn-add-child" disabled>+ ChildNode</button>
+            <button id="btn-add-sibling" disabled>+ SiblingNode</button>
+        </div>
+
+        <div class="panel-group">
+            <button id="btn-move-up" disabled>↑ Move Up</button>
+            <button id="btn-move-down" disabled>↓ Move Down</button>
+            <button id="btn-move-in" disabled>→ Move In</button>
+            <button id="btn-move-out" disabled>← Move Out</button>
+        </div>
+
+        <div class="panel-group">
+            <button id="btn-node-from-text" disabled>Create node with selected text</button>
+        </div>
+
+        <div class="panel-group">
+            <button id="btn-save-tree">Save Node Tree</button>
+            <button id="btn-load-tree">Load Node Tree</button>
+            <input type="file" id="file-tree-input" accept=".json" style="display:none">
+
+            <button id="btn-save-session">Save Session</button>
+            <button id="btn-load-session">Load Session</button>
+            <input type="file" id="file-session-input" accept=".json" style="display:none">
+        </div>
+    </div>
+</div>
+
+<!-- MAIN VIEW CONTAINER -->
+<div id="main-container">
+    <!-- LEFT PANEL: NAVIGATION TREE -->
+    <div id="left-pane" tabindex="0">
+        <div id="tree-root"></div>
     </div>
 
-    <!-- Tree Action Controls (Context-Driven) -->
-    <div class="toolbar-group" id="tree-actions">
-      <button id="btn-add-root">+RootNode</button>
-      <button id="btn-add-child" disabled>+ChildNode</button>
-      <button id="btn-add-sibling" disabled>+SiblingNode</button>
-      <button id="btn-move-up" disabled>Move Up</button>
-      <button id="btn-move-down" disabled>Move Down</button>
-      <button id="btn-move-out" disabled>Move Out</button>
-      <button id="btn-move-in" disabled>Move In</button>
-      <button id="btn-create-from-text" disabled>Create node with selected text</button>
-    </div>
-
-    <!-- Storage / Import / Export -->
-    <div class="toolbar-group">
-      <button id="btn-save-tree">Save Node Tree</button>
-      <button id="btn-load-tree">Load Node Tree</button>
-      <button id="btn-save-session">Save Session</button>
-      <button id="btn-load-session">Load Session</button>
-      <input type="file" id="file-input" class="hidden" accept=".json">
-    </div>
-  </div>
-
-  <!-- Main Split Window -->
-  <div id="main-container">
-    <div id="left-pane">
-      <div id="tree-container"></div>
-    </div>
+    <!-- RIGHT PANEL: EDITOR -->
     <div id="right-pane">
-      <div id="placeholder" class="placeholder-msg">Choose a node to edit</div>
-      <div id="editor-container" class="hidden">
-        <div id="line-numbers">1</div>
-        <textarea id="editor" spellcheck="false"></textarea>
-      </div>
+        <div id="editor-status">Choose a node to edit</div>
+        <div id="editor-container" style="display: none;">
+            <div id="line-numbers">1</div>
+            <textarea id="editor" spellcheck="false"></textarea>
+        </div>
     </div>
-  </div>
+</div>
 
-  <!-- Create Node from Selection Modal -->
-  <div id="modal-selected-text" class="modal-overlay hidden">
-    <div class="modal">
-      <h3>Create Node from Selected Text</h3>
-      <div class="modal-field">
-        <label for="modal-node-name">Node Name:</label>
-        <input type="text" id="modal-node-name">
-      </div>
-      <div class="modal-radios">
-        <label><input type="radio" name="node-mode" value="name" checked> Use selected as name</label>
-        <label><input type="radio" name="node-mode" value="content"> Use selected as content</label>
-      </div>
-      <div class="modal-actions">
-        <button id="btn-modal-cancel">Cancel</button>
-        <button id="btn-modal-confirm">Create</button>
-      </div>
+<!-- DIALOG: CREATE NODE FROM TEXT -->
+<div id="dialog-text-node" class="modal-overlay hidden">
+    <div class="modal-box">
+        <div class="modal-title">Create Node with Selected Text</div>
+        <div class="modal-field">
+            <label for="modal-node-name">Node Name:</label>
+            <input type="text" id="modal-node-name">
+        </div>
+        <div class="modal-options">
+            <label><input type="radio" name="node-text-mode" id="rad-use-name" checked> Use selected as name</label>
+            <label><input type="radio" name="node-text-mode" id="rad-use-content"> Use selected as content</label>
+        </div>
+        <div class="modal-actions">
+            <button id="modal-btn-cancel">Cancel</button>
+            <button id="modal-btn-create" class="primary">Create</button>
+        </div>
     </div>
-  </div>
+</div>
 
-  <script>
-    // System State
-    let treeData = [];
-    let selectedNodeId = null;
-    let activeEditorNodeId = null;
-    let isViewMode = false;
-    let pendingFileAction = null; // 'tree' or 'session'
+<!-- DIALOG: DELETE WARNING -->
+<div id="dialog-delete-warn" class="modal-overlay hidden">
+    <div class="modal-box">
+        <div class="modal-title">Confirm Deletion</div>
+        <p id="delete-warn-msg" style="font-size: 13px;">This node contains subnodes or content. Are you sure you want to delete it?</p>
+        <div class="modal-actions">
+            <button id="modal-del-cancel">Cancel</button>
+            <button id="modal-del-confirm" class="primary">Delete</button>
+        </div>
+    </div>
+</div>
 
-    // DOM Elements
-    const treeContainer = document.getElementById('tree-container');
-    const placeholder = document.getElementById('placeholder');
+<script>
+    /**
+     * STATE MANAGEMENT
+     */
+    let state = {
+      nodes: [],
+      selectedNodeId: null,
+      editingNodeId: null,
+      isEditView: true,
+      autoOpen: false,
+      capsScroll: false,
+      wordWrap: false,
+      lineNumbers: true,
+      dndEnabled: false,
+      deleteWarning: true,
+      darkMode: false
+    };
+
+    let selectedTextContext = "";
+    let pendingDeleteId = null;
+
+    function generateId() {
+      return 'node_' + Math.random().toString(36).substr(2, 9);
+    }
+
+    /**
+     * DOM ELEMENTS
+     */
+    const leftPane = document.getElementById('left-pane');
+    const treeRootEl = document.getElementById('tree-root');
+    const rightPane = document.getElementById('right-pane');
+    const editorStatus = document.getElementById('editor-status');
     const editorContainer = document.getElementById('editor-container');
     const editor = document.getElementById('editor');
     const lineNumbers = document.getElementById('line-numbers');
-    
+
     // Controls
+    const btnThemeToggle = document.getElementById('btn-theme-toggle');
+    const btnModeToggle = document.getElementById('btn-mode-toggle');
     const chkAutoOpen = document.getElementById('chk-auto-open');
-    const btnEditView = document.getElementById('btn-edit-view');
     const chkCapsScroll = document.getElementById('chk-caps-scroll');
     const chkWordWrap = document.getElementById('chk-word-wrap');
-    const chkLineNums = document.getElementById('chk-line-nums');
-    const themeToggle = document.getElementById('theme-toggle');
-    const fileInput = document.getElementById('file-input');
+    const chkLineNumbers = document.getElementById('chk-line-numbers');
+    const chkDnd = document.getElementById('chk-dnd');
+    const chkDelWarn = document.getElementById('chk-del-warn');
 
-    // Context Buttons
+    // Node buttons
     const btnAddRoot = document.getElementById('btn-add-root');
     const btnAddChild = document.getElementById('btn-add-child');
     const btnAddSibling = document.getElementById('btn-add-sibling');
     const btnMoveUp = document.getElementById('btn-move-up');
     const btnMoveDown = document.getElementById('btn-move-down');
-    const btnMoveOut = document.getElementById('btn-move-out');
     const btnMoveIn = document.getElementById('btn-move-in');
-    const btnCreateFromText = document.getElementById('btn-create-from-text');
+    const btnMoveOut = document.getElementById('btn-move-out');
+    const btnNodeFromText = document.getElementById('btn-node-from-text');
 
-    // Modal Elements
-    const modal = document.getElementById('modal-selected-text');
+    // File buttons
+    const btnSaveTree = document.getElementById('btn-save-tree');
+    const btnLoadTree = document.getElementById('btn-load-tree');
+    const fileTreeInput = document.getElementById('file-tree-input');
+    const btnSaveSession = document.getElementById('btn-save-session');
+    const btnLoadSession = document.getElementById('btn-load-session');
+    const fileSessionInput = document.getElementById('file-session-input');
+
+    // Dialogs
+    const dialogTextNode = document.getElementById('dialog-text-node');
     const modalNodeName = document.getElementById('modal-node-name');
-    const modalRadioName = document.querySelector('input[name="node-mode"][value="name"]');
-    const modalRadioContent = document.querySelector('input[name="node-mode"][value="content"]');
-    const btnModalCancel = document.getElementById('btn-modal-cancel');
-    const btnModalConfirm = document.getElementById('btn-modal-confirm');
+    const radUseName = document.getElementById('rad-use-name');
+    const radUseContent = document.getElementById('rad-use-content');
+    const modalBtnCancel = document.getElementById('modal-btn-cancel');
+    const modalBtnCreate = document.getElementById('modal-btn-create');
 
-    // Helper: Unique ID generator
-    function generateId() {
-      return 'node_' + Math.random().toString(36).substr(2, 9);
+    const dialogDeleteWarn = document.getElementById('dialog-delete-warn');
+    const modalDelCancel = document.getElementById('modal-del-cancel');
+    const modalDelConfirm = document.getElementById('modal-del-confirm');
+
+    /**
+     * FOCUS MANAGEMENT HELPER
+     */
+    function focusLeftPane() {
+      if (document.activeElement === editor || (document.activeElement && document.activeElement.tagName === 'INPUT')) {
+        return;
+      }
+      leftPane.focus();
     }
 
-    // Helper: Recursively search nodes
-    function findNodeAndParent(id, nodes = treeData, parent = null) {
+    /**
+     * TREE DATA HELPER FUNCTIONS
+     */
+    function findNodeAndParent(nodes, id, parent = null) {
       for (let i = 0; i < nodes.length; i++) {
         if (nodes[i].id === id) {
-          return { node: nodes[i], parent: parent, index: i, siblings: nodes };
+          return { node: nodes[i], parent, index: i, siblings: nodes };
         }
         if (nodes[i].children && nodes[i].children.length > 0) {
-          const res = findNodeAndParent(id, nodes[i].children, nodes[i]);
+          const res = findNodeAndParent(nodes[i].children, id, nodes[i]);
           if (res) return res;
         }
       }
       return null;
     }
 
-    // Render Navigation Tree
+    function findNodeById(id) {
+      const res = findNodeAndParent(state.nodes, id);
+      return res ? res.node : null;
+    }
+
+    function flattenNodes(nodes) {
+      let list = [];
+      for (let n of nodes) {
+        list.push(n);
+        if (n.expanded && n.children && n.children.length > 0) {
+          list = list.concat(flattenNodes(n.children));
+        }
+      }
+      return list;
+    }
+
+    /**
+     * RENDER FUNCTIONS
+     */
     function renderTree() {
-      treeContainer.innerHTML = '';
-      if (treeData.length === 0) {
-        treeContainer.innerHTML = '<div class="empty-tree-msg">Create a node to proceed</div>';
-        selectedNodeId = null;
-        closeEditor();
-        updateToolbarState();
+      treeRootEl.innerHTML = '';
+      if (state.nodes.length === 0) {
+        treeRootEl.innerHTML = '<div class="empty-tree-msg">Create a node to proceed</div>';
         return;
       }
 
-      function buildNodeUI(node) {
-        const wrapper = document.createElement('div');
-        wrapper.className = 'tree-node-wrapper';
+      const ul = renderNodeGroup(state.nodes, 0);
+      treeRootEl.appendChild(ul);
+      updateButtonStates();
+    }
 
-        const nodeEl = document.createElement('div');
-        nodeEl.className = 'tree-node' + (node.id === selectedNodeId ? ' selected' : '');
-        
-        const hasChildren = node.children && node.children.length > 0;
-        const toggleIcon = document.createElement('span');
-        toggleIcon.className = 'toggle-icon';
-        toggleIcon.innerText = hasChildren ? (node.expanded ? '▼' : '►') : ' ';
-        
-        toggleIcon.onclick = (e) => {
-          e.stopPropagation();
-          if (hasChildren) {
+    function renderNodeGroup(nodes, depth = 0) {
+      const ul = document.createElement('ul');
+      ul.className = 'tree-group';
+
+      // Rainbow color sequence
+      const colorIndex = depth % 4;
+      ul.style.setProperty('--fold-color', `var(--fold-color-${colorIndex})`);
+
+      nodes.forEach(node => {
+        const li = document.createElement('li');
+        li.className = 'tree-node-li';
+
+        const contentDiv = document.createElement('div');
+        contentDiv.className = 'tree-node-content';
+        if (node.id === state.selectedNodeId) contentDiv.classList.add('selected');
+        if (node.id === state.editingNodeId) contentDiv.classList.add('editing');
+
+        contentDiv.dataset.id = node.id;
+        if (state.dndEnabled) {
+          contentDiv.draggable = true;
+        }
+
+        // Expander symbol
+        const expander = document.createElement('span');
+        expander.className = 'tree-expander';
+        if (node.children && node.children.length > 0) {
+          expander.textContent = node.expanded ? '▼' : '►';
+          expander.onclick = (e) => {
+            e.stopPropagation();
             node.expanded = !node.expanded;
             renderTree();
+            focusLeftPane();
+          };
+        } else {
+          expander.textContent = '•';
+        }
+        contentDiv.appendChild(expander);
+
+        // Label / In-line Editor
+        const label = document.createElement('span');
+        label.className = 'node-label';
+        label.textContent = node.name || 'Untitled';
+        contentDiv.appendChild(label);
+
+        // Editing indicator tag
+        if (node.id === state.editingNodeId) {
+          const tag = document.createElement('span');
+          tag.className = 'node-tag';
+          tag.textContent = '[IN EDIT]';
+          contentDiv.appendChild(tag);
+        }
+
+        // Selection & Engagement
+        contentDiv.onclick = (e) => {
+          e.stopPropagation();
+          selectNode(node.id);
+          if (state.autoOpen) {
+            engageEditor(node.id);
+          } else {
+            focusLeftPane();
           }
         };
 
-        const label = document.createElement('span');
-        label.innerText = node.name;
-
-        nodeEl.appendChild(toggleIcon);
-        nodeEl.appendChild(label);
-
-        nodeEl.onclick = (e) => {
+        // Double click to rename
+        contentDiv.ondblclick = (e) => {
           e.stopPropagation();
-          selectNode(node.id);
+          enableInlineRename(contentDiv, node);
         };
 
-        wrapper.appendChild(nodeEl);
-
-        if (hasChildren) {
-          const childrenCont = document.createElement('div');
-          childrenCont.className = 'node-children' + (node.expanded ? ' expanded' : '');
-          node.children.forEach(child => {
-            childrenCont.appendChild(buildNodeUI(child));
-          });
-          wrapper.appendChild(childrenCont);
+        // Drag & Drop
+        if (state.dndEnabled) {
+          setupDragAndDrop(contentDiv, node);
         }
 
-        return wrapper;
-      }
+        li.appendChild(contentDiv);
 
-      treeData.forEach(node => {
-        treeContainer.appendChild(buildNodeUI(node));
+        if (node.children && node.children.length > 0 && node.expanded) {
+          li.appendChild(renderNodeGroup(node.children, depth + 1));
+        }
+
+        ul.appendChild(li);
       });
 
-      updateToolbarState();
+      return ul;
     }
 
-    // Select Node
     function selectNode(id) {
-      selectedNodeId = id;
+      state.selectedNodeId = id;
       renderTree();
-
-      if (chkAutoOpen.checked) {
-        openEditor(id);
-      }
+      updateButtonStates();
     }
 
-    // Toggle/Open/Close Editor Logic
-    function openEditor(id) {
-      if (!id) return;
-      activeEditorNodeId = id;
-      const target = findNodeAndParent(id);
-      if (!target) return;
+    function engageEditor(id) {
+      if (state.editingNodeId === id) {
+        closeEditor();
+        return;
+      }
 
-      placeholder.classList.add('hidden');
-      editorContainer.classList.remove('hidden');
-      editor.value = target.node.content || '';
-      editor.readOnly = isViewMode;
+      const node = findNodeById(id);
+      if (!node) return;
+
+      state.editingNodeId = id;
+      editorStatus.style.display = 'none';
+      editorContainer.style.display = 'flex';
+      editor.value = node.content || '';
+      editor.readOnly = !state.isEditView;
+
+      renderTree();
       updateLineNumbers();
+      editor.focus();
     }
 
     function closeEditor() {
-      activeEditorNodeId = null;
-      editorContainer.classList.add('hidden');
-      placeholder.classList.remove('hidden');
-      placeholder.innerText = treeData.length === 0 ? 'Create a node to proceed' : 'Choose a node to edit';
+      state.editingNodeId = null;
+      editorContainer.style.display = 'none';
+      editorStatus.style.display = 'block';
+      editorStatus.textContent = 'Choose a node to edit';
+      renderTree();
+      leftPane.focus();
     }
 
-    function toggleEditor(id) {
-      if (activeEditorNodeId === id) {
-        closeEditor();
-      } else {
-        openEditor(id);
+    function updateLineNumbers() {
+      if (!state.lineNumbers) {
+        lineNumbers.style.display = 'none';
+        return;
       }
+      lineNumbers.style.display = 'block';
+      const lines = editor.value.split('\n').length;
+      let numbersHtml = '';
+      for (let i = 1; i <= lines; i++) {
+        numbersHtml += i + '<br>';
+      }
+      lineNumbers.innerHTML = numbersHtml;
     }
 
-    // Sync content from Editor to Memory
-    editor.addEventListener('input', () => {
-      if (activeEditorNodeId) {
-        const target = findNodeAndParent(activeEditorNodeId);
-        if (target) {
-          target.node.content = editor.value;
+    function updateButtonStates() {
+      const hasSelection = state.selectedNodeId !== null;
+      btnAddChild.disabled = !hasSelection;
+      btnAddSibling.disabled = !hasSelection;
+
+      if (hasSelection) {
+        const res = findNodeAndParent(state.nodes, state.selectedNodeId);
+        if (res) {
+          btnMoveUp.disabled = res.index === 0;
+          btnMoveDown.disabled = res.index === res.siblings.length - 1;
+          btnMoveIn.disabled = res.index === 0;
+          btnMoveOut.disabled = res.parent === null;
+        }
+      } else {
+        btnMoveUp.disabled = true;
+        btnMoveDown.disabled = true;
+        btnMoveIn.disabled = true;
+        btnMoveOut.disabled = true;
+      }
+
+      const hasTextSelection = editor.selectionStart !== editor.selectionEnd;
+      btnNodeFromText.disabled = !(state.editingNodeId && hasTextSelection);
+    }
+
+    function enableInlineRename(containerDiv, node) {
+      const labelSpan = containerDiv.querySelector('.node-label');
+      if (!labelSpan) return;
+
+      const currentName = node.name;
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.className = 'node-input';
+      input.value = currentName;
+
+      containerDiv.replaceChild(input, labelSpan);
+      input.focus();
+      input.select();
+
+      const finishRename = () => {
+        const newName = input.value.trim();
+        node.name = newName || currentName;
+        renderTree();
+        leftPane.focus();
+      };
+
+      input.onblur = finishRename;
+      input.onkeydown = (e) => {
+        if (e.key === 'Enter') finishRename();
+        if (e.key === 'Escape') {
+          renderTree();
+          leftPane.focus();
+        }
+      };
+    }
+
+    /**
+     * TREE MANIPULATION COMMANDS
+     */
+    function addNode(type) {
+      const newNode = { id: generateId(), name: 'New Node', content: '', children: [], expanded: true };
+
+      if (type === 'root' || state.nodes.length === 0 || !state.selectedNodeId) {
+        state.nodes.push(newNode);
+      } else {
+        const res = findNodeAndParent(state.nodes, state.selectedNodeId);
+        if (res) {
+          if (type === 'child') {
+            res.node.children.push(newNode);
+            res.node.expanded = true;
+          } else if (type === 'sibling') {
+            res.siblings.splice(res.index + 1, 0, newNode);
+          }
         }
       }
-      updateLineNumbers();
-      updateCreateFromTextBtn();
-    });
-
-    // Editor Scroll & Line Numbers
-    function updateLineNumbers() {
-      if (!chkLineNums.checked) return;
-      const lines = editor.value.split('\n').length;
-      lineNumbers.innerHTML = Array.from({ length: lines }, (_, i) => i + 1).join('<br>');
+      selectNode(newNode.id);
+      renderTree();
+      focusLeftPane();
     }
+
+    function moveNode(direction) {
+      if (!state.selectedNodeId) return;
+      const res = findNodeAndParent(state.nodes, state.selectedNodeId);
+      if (!res) return;
+
+      const { node, index, siblings, parent } = res;
+
+      if (direction === 'up' && index > 0) {
+        siblings.splice(index, 1);
+        siblings.splice(index - 1, 0, node);
+      } else if (direction === 'down' && index < siblings.length - 1) {
+        siblings.splice(index, 1);
+        siblings.splice(index + 1, 0, node);
+      } else if (direction === 'in' && index > 0) {
+        const prevSibling = siblings[index - 1];
+        siblings.splice(index, 1);
+        prevSibling.children.push(node);
+        prevSibling.expanded = true;
+      } else if (direction === 'out' && parent) {
+        const parentRes = findNodeAndParent(state.nodes, parent.id);
+        siblings.splice(index, 1);
+        parentRes.siblings.splice(parentRes.index + 1, 0, node);
+      }
+
+      renderTree();
+      selectNode(node.id);
+      focusLeftPane();
+    }
+
+    function deleteNode(id) {
+      const res = findNodeAndParent(state.nodes, id);
+      if (!res) return;
+
+      const { node } = res;
+      const hasSubnodes = node.children && node.children.length > 0;
+      const hasContent = node.content && node.content.trim().length > 0;
+
+      if (state.deleteWarning && (hasSubnodes || hasContent)) {
+        pendingDeleteId = id;
+        dialogDeleteWarn.classList.remove('hidden');
+        return;
+      }
+
+      executeDelete(id);
+    }
+
+    function executeDelete(id) {
+      const res = findNodeAndParent(state.nodes, id);
+      if (!res) return;
+
+      const visibleNodes = flattenNodes(state.nodes);
+      const currentIndex = visibleNodes.findIndex(n => n.id === id);
+      let nextSelectId = null;
+      if (currentIndex > 0) {
+        nextSelectId = visibleNodes[currentIndex - 1].id;
+      } else if (visibleNodes.length > 1) {
+        nextSelectId = visibleNodes[1].id;
+      }
+
+      res.siblings.splice(res.index, 1);
+
+      if (state.editingNodeId === id) {
+        state.editingNodeId = null;
+        editorContainer.style.display = 'none';
+        editorStatus.style.display = 'block';
+        editorStatus.textContent = 'Choose a node to edit';
+      }
+
+      state.selectedNodeId = nextSelectId;
+
+      renderTree();
+      leftPane.focus();
+    }
+
+    /**
+     * DRAG AND DROP IMPLEMENTATION
+     */
+    let draggedNodeId = null;
+
+    function setupDragAndDrop(el, node) {
+      el.ondragstart = (e) => {
+        draggedNodeId = node.id;
+        e.dataTransfer.setData('text/plain', node.id);
+      };
+
+      el.ondragover = (e) => {
+        e.preventDefault();
+        el.classList.add('drag-over');
+      };
+
+      el.ondragleave = () => {
+        el.classList.remove('drag-over');
+      };
+
+      el.ondrop = (e) => {
+        e.preventDefault();
+        el.classList.remove('drag-over');
+        if (!draggedNodeId || draggedNodeId === node.id) return;
+
+        const sourceRes = findNodeAndParent(state.nodes, draggedNodeId);
+        const targetNode = node;
+
+        if (!sourceRes) return;
+
+        let check = targetNode;
+        while (check) {
+          if (check.id === sourceRes.node.id) return;
+          const parentLookup = findNodeAndParent(state.nodes, check.id);
+          check = parentLookup ? parentLookup.parent : null;
+        }
+
+        sourceRes.siblings.splice(sourceRes.index, 1);
+        targetNode.children.push(sourceRes.node);
+        targetNode.expanded = true;
+
+        draggedNodeId = null;
+        renderTree();
+        focusLeftPane();
+      };
+    }
+
+    /**
+     * EVENT LISTENERS & SHORTCUTS
+     */
+    editor.addEventListener('input', () => {
+      if (state.editingNodeId) {
+        const node = findNodeById(state.editingNodeId);
+        if (node) node.content = editor.value;
+      }
+      updateLineNumbers();
+    });
 
     editor.addEventListener('scroll', () => {
       lineNumbers.scrollTop = editor.scrollTop;
     });
 
-    // Mouse Selection in Editor
-    editor.addEventListener('selectionchange', updateCreateFromTextBtn);
-    editor.addEventListener('keyup', updateCreateFromTextBtn);
-    editor.addEventListener('mouseup', updateCreateFromTextBtn);
+    editor.addEventListener('select', updateButtonStates);
+    editor.addEventListener('keyup', updateButtonStates);
 
-    function updateCreateFromTextBtn() {
-      const selectedText = editor.value.substring(editor.selectionStart, editor.selectionEnd).trim();
-      btnCreateFromText.disabled = !selectedText || isViewMode;
-    }
-
-    // Keyboard Shortcuts (Ctrl + Enter to toggle active editor on selected node)
-    document.addEventListener('keydown', (e) => {
-      if (e.ctrlKey && e.key === 'Enter') {
-        if (selectedNodeId) {
-          e.preventDefault();
-          toggleEditor(selectedNodeId);
-        }
-      }
-    });
-
-    // Side-scroll on CapsLock + Vertical Scroll
     editor.addEventListener('wheel', (e) => {
-      if (chkCapsScroll.checked && e.getModifierState('CapsLock')) {
+      if (state.capsScroll && e.getModifierState && e.getModifierState('CapsLock')) {
         if (e.deltaY !== 0) {
-          e.preventDefault();
           editor.scrollLeft += e.deltaY;
+          e.preventDefault();
         }
       }
     }, { passive: false });
 
-    // Enable / Disable Context Buttons
-    function updateToolbarState() {
-      const hasSelection = selectedNodeId !== null;
-      btnAddChild.disabled = !hasSelection;
-      btnAddSibling.disabled = !hasSelection;
-      
-      if (!hasSelection) {
-        btnMoveUp.disabled = true;
-        btnMoveDown.disabled = true;
-        btnMoveOut.disabled = true;
-        btnMoveIn.disabled = true;
+    document.addEventListener('keydown', (e) => {
+      if (e.ctrlKey && e.key === 'Enter') {
+        e.preventDefault();
+        if (state.selectedNodeId) {
+          engageEditor(state.selectedNodeId);
+        }
         return;
       }
 
-      const target = findNodeAndParent(selectedNodeId);
-      if (!target) return;
+      const isFocusedInEditor = (document.activeElement === editor);
+      const isInsideModalInput = document.activeElement && document.activeElement.tagName === 'INPUT';
 
-      btnMoveUp.disabled = target.index === 0;
-      btnMoveDown.disabled = target.index === target.siblings.length - 1;
-      btnMoveOut.disabled = target.parent === null;
-      btnMoveIn.disabled = target.index === 0;
-    }
-
-    // Tree Operation Handlers
-    btnAddRoot.onclick = () => {
-      const name = prompt('Enter Root Node Name:', 'New Root');
-      if (!name) return;
-      const newNode = { id: generateId(), name: name, content: '', children: [], expanded: true };
-      treeData.push(newNode);
-      selectNode(newNode.id);
-    };
-
-    btnAddChild.onclick = () => {
-      if (!selectedNodeId) return;
-      const target = findNodeAndParent(selectedNodeId);
-      const name = prompt('Enter Child Node Name:', 'New Child');
-      if (!name) return;
-      const newNode = { id: generateId(), name: name, content: '', children: [], expanded: true };
-      target.node.children = target.node.children || [];
-      target.node.children.push(newNode);
-      target.node.expanded = true;
-      selectNode(newNode.id);
-    };
-
-    btnAddSibling.onclick = () => {
-      if (!selectedNodeId) return;
-      const target = findNodeAndParent(selectedNodeId);
-      const name = prompt('Enter Sibling Node Name:', 'New Sibling');
-      if (!name) return;
-      const newNode = { id: generateId(), name: name, content: '', children: [], expanded: true };
-      target.siblings.splice(target.index + 1, 0, newNode);
-      selectNode(newNode.id);
-    };
-
-    btnMoveUp.onclick = () => {
-      const target = findNodeAndParent(selectedNodeId);
-      if (target && target.index > 0) {
-        const temp = target.siblings[target.index];
-        target.siblings[target.index] = target.siblings[target.index - 1];
-        target.siblings[target.index - 1] = temp;
-        renderTree();
-      }
-    };
-
-    btnMoveDown.onclick = () => {
-      const target = findNodeAndParent(selectedNodeId);
-      if (target && target.index < target.siblings.length - 1) {
-        const temp = target.siblings[target.index];
-        target.siblings[target.index] = target.siblings[target.index + 1];
-        target.siblings[target.index + 1] = temp;
-        renderTree();
-      }
-    };
-
-    btnMoveOut.onclick = () => {
-      const target = findNodeAndParent(selectedNodeId);
-      if (target && target.parent) {
-        const parentTarget = findNodeAndParent(target.parent.id);
-        target.siblings.splice(target.index, 1);
-        parentTarget.siblings.splice(parentTarget.index + 1, 0, target.node);
-        renderTree();
-      }
-    };
-
-    btnMoveIn.onclick = () => {
-      const target = findNodeAndParent(selectedNodeId);
-      if (target && target.index > 0) {
-        const prevSibling = target.siblings[target.index - 1];
-        target.siblings.splice(target.index, 1);
-        prevSibling.children = prevSibling.children || [];
-        prevSibling.children.push(target.node);
-        prevSibling.expanded = true;
-        renderTree();
-      }
-    };
-
-    // Mode / Display Toggles
-    btnEditView.onclick = () => {
-      isViewMode = !isViewMode;
-      btnEditView.innerText = isViewMode ? 'Mode: View' : 'Mode: Edit';
-      editor.readOnly = isViewMode;
-      updateCreateFromTextBtn();
-    };
-
-    chkWordWrap.onchange = () => {
-      if (chkWordWrap.checked) {
-        editor.classList.add('wrap');
-      } else {
-        editor.classList.remove('wrap');
-      }
-    };
-
-    chkLineNums.onchange = () => {
-      lineNumbers.style.display = chkLineNums.checked ? 'block' : 'none';
-      if (chkLineNums.checked) updateLineNumbers();
-    };
-
-    themeToggle.onclick = () => {
-      const isDark = document.body.getAttribute('data-theme') === 'dark';
-      if (isDark) {
-        document.body.removeAttribute('data-theme');
-        themeToggle.innerText = 'Theme: Light';
-      } else {
-        document.body.setAttribute('data-theme', 'dark');
-        themeToggle.innerText = 'Theme: Dark';
-      }
-    };
-
-    // Modal Dialog Logic (Create Node with Selected Text)
-    let originalSelectedText = "";
-
-    btnCreateFromText.onclick = () => {
-      originalSelectedText = editor.value.substring(editor.selectionStart, editor.selectionEnd).trim();
-      if (!originalSelectedText) return;
-
-      modalNodeName.value = originalSelectedText;
-      modalRadioName.checked = true;
-      modalNodeName.readOnly = true;
-
-      modal.classList.remove('hidden');
-    };
-
-    modalRadioName.onchange = () => {
-      modalNodeName.value = originalSelectedText;
-      modalNodeName.readOnly = true;
-    };
-
-    modalRadioContent.onchange = () => {
-      modalNodeName.readOnly = false;
-      if (modalNodeName.value === originalSelectedText) {
-        modalNodeName.value = "";
-      }
-    };
-
-    btnModalCancel.onclick = () => {
-      modal.classList.add('hidden');
-    };
-
-    btnModalConfirm.onclick = () => {
-      const name = modalNodeName.value.trim();
-      if (!name) {
-        alert('Node name is required.');
+      if (isFocusedInEditor) {
         return;
       }
 
-      const isNameMode = modalRadioName.checked;
+      if (!isInsideModalInput) {
+        if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+          e.preventDefault();
+          if (state.nodes.length > 0) {
+            const visibleNodes = flattenNodes(state.nodes);
+            const currentIndex = visibleNodes.findIndex(n => n.id === state.selectedNodeId);
+
+            if (e.key === 'ArrowDown') {
+              const nextIndex = Math.min(currentIndex + 1, visibleNodes.length - 1);
+              selectNode(visibleNodes[nextIndex].id);
+            } else if (e.key === 'ArrowUp') {
+              const prevIndex = Math.max(currentIndex - 1, 0);
+              selectNode(visibleNodes[prevIndex].id);
+            }
+          }
+          leftPane.focus();
+          return;
+        }
+
+        if (e.key === 'F2' && state.selectedNodeId) {
+          e.preventDefault();
+          const targetEl = leftPane.querySelector(`[data-id="${state.selectedNodeId}"]`);
+          const node = findNodeById(state.selectedNodeId);
+          if (targetEl && node) enableInlineRename(targetEl, node);
+          return;
+        }
+
+        if (e.ctrlKey && e.key === 'Delete') {
+          if (state.selectedNodeId) {
+            e.preventDefault();
+            deleteNode(state.selectedNodeId);
+          }
+          return;
+        }
+      }
+    });
+
+    leftPane.addEventListener('click', () => leftPane.focus());
+
+    document.getElementById('top-panel').addEventListener('click', () => {
+      setTimeout(focusLeftPane, 50);
+    });
+
+    // Button Handlers
+    btnAddRoot.onclick = () => addNode('root');
+    btnAddChild.onclick = () => addNode('child');
+    btnAddSibling.onclick = () => addNode('sibling');
+
+    btnMoveUp.onclick = () => moveNode('up');
+    btnMoveDown.onclick = () => moveNode('down');
+    btnMoveIn.onclick = () => moveNode('in');
+    btnMoveOut.onclick = () => moveNode('out');
+
+    btnThemeToggle.onclick = () => {
+      state.darkMode = !state.darkMode;
+      document.body.setAttribute('data-theme', state.darkMode ? 'dark' : 'light');
+      btnThemeToggle.textContent = state.darkMode ? '☀️ Light Mode' : '🌙 Dark Mode';
+    };
+
+    btnModeToggle.onclick = () => {
+      state.isEditView = !state.isEditView;
+      btnModeToggle.textContent = state.isEditView ? '👁 View Mode' : '✏️ Edit Mode';
+      editor.readOnly = !state.isEditView;
+      if (state.editingNodeId) {
+        editor.focus();
+      }
+    };
+
+    chkAutoOpen.onchange = (e) => state.autoOpen = e.target.checked;
+    chkCapsScroll.onchange = (e) => state.capsScroll = e.target.checked;
+    chkWordWrap.onchange = (e) => {
+      state.wordWrap = e.target.checked;
+      editor.classList.toggle('word-wrap', state.wordWrap);
+    };
+    chkLineNumbers.onchange = (e) => {
+      state.lineNumbers = e.target.checked;
+      updateLineNumbers();
+    };
+    chkDnd.onchange = (e) => {
+      state.dndEnabled = e.target.checked;
+      renderTree();
+    };
+    chkDelWarn.onchange = (e) => state.deleteWarning = e.target.checked;
+
+    btnNodeFromText.onclick = () => {
+      const start = editor.selectionStart;
+      const end = editor.selectionEnd;
+      selectedTextContext = editor.value.substring(start, end);
+
+      if (!selectedTextContext) return;
+
+      modalNodeName.value = selectedTextContext;
+      radUseName.checked = true;
+      modalNodeName.disabled = true;
+
+      dialogTextNode.classList.remove('hidden');
+    };
+
+    radUseName.onchange = () => {
+      if (radUseName.checked) {
+        modalNodeName.value = selectedTextContext;
+        modalNodeName.disabled = true;
+      }
+    };
+
+    radUseContent.onchange = () => {
+      if (radUseContent.checked) {
+        modalNodeName.disabled = false;
+        if (modalNodeName.value === selectedTextContext) {
+          modalNodeName.value = '';
+        }
+      }
+    };
+
+    modalBtnCancel.onclick = () => {
+      dialogTextNode.classList.add('hidden');
+      focusLeftPane();
+    };
+
+    modalBtnCreate.onclick = () => {
+      const name = modalNodeName.value.trim() || 'Untitled Node';
+      const content = radUseContent.checked ? selectedTextContext : '';
+
       const newNode = {
         id: generateId(),
         name: name,
-        content: isNameMode ? "" : originalSelectedText,
+        content: content,
         children: [],
         expanded: true
       };
 
-      if (selectedNodeId) {
-        const target = findNodeAndParent(selectedNodeId);
-        target.node.children = target.node.children || [];
-        target.node.children.push(newNode);
-        target.node.expanded = true;
+      if (state.selectedNodeId) {
+        const res = findNodeAndParent(state.nodes, state.selectedNodeId);
+        if (res) {
+          res.node.children.push(newNode);
+          res.node.expanded = true;
+        }
       } else {
-        treeData.push(newNode);
+        state.nodes.push(newNode);
       }
 
-      modal.classList.add('hidden');
+      dialogTextNode.classList.add('hidden');
+      renderTree();
       selectNode(newNode.id);
+      focusLeftPane();
     };
 
-    // Storage: Save & Load Node Tree
-    document.getElementById('btn-save-tree').onclick = () => {
+    modalDelCancel.onclick = () => {
+      pendingDeleteId = null;
+      dialogDeleteWarn.classList.add('hidden');
+      focusLeftPane();
+    };
+
+    modalDelConfirm.onclick = () => {
+      if (pendingDeleteId) {
+        executeDelete(pendingDeleteId);
+        pendingDeleteId = null;
+      }
+      dialogDeleteWarn.classList.add('hidden');
+      focusLeftPane();
+    };
+
+    function getTimestamp() {
       const now = new Date();
-      const timestamp = now.toISOString().replace(/[:.]/g, '-');
-      const filename = `${timestamp}_nodetree.json`;
-      downloadJSON(treeData, filename);
-    };
-
-    document.getElementById('btn-load-tree').onclick = () => {
-      pendingFileAction = 'tree';
-      fileInput.click();
-    };
-
-    // Storage: Save & Load Full Session
-    document.getElementById('btn-save-session').onclick = () => {
-      const sessionData = {
-        treeData: treeData,
-        selectedNodeId: selectedNodeId,
-        activeEditorNodeId: activeEditorNodeId,
-        toggles: {
-          autoOpen: chkAutoOpen.checked,
-          viewMode: isViewMode,
-          capsScroll: chkCapsScroll.checked,
-          wordWrap: chkWordWrap.checked,
-          lineNums: chkLineNums.checked,
-          theme: document.body.getAttribute('data-theme') || 'light'
-        }
-      };
-      downloadJSON(sessionData, 'session.json');
-    };
-
-    document.getElementById('btn-load-session').onclick = () => {
-      pendingFileAction = 'session';
-      fileInput.click();
-    };
-
-    fileInput.onchange = (e) => {
-      const file = e.target.files[0];
-      if (!file) return;
-
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        try {
-          const parsed = JSON.parse(event.target.result);
-          if (pendingFileAction === 'tree') {
-            treeData = Array.isArray(parsed) ? parsed : [];
-            selectedNodeId = null;
-            closeEditor();
-            renderTree();
-          } else if (pendingFileAction === 'session') {
-            treeData = parsed.treeData || [];
-            selectedNodeId = parsed.selectedNodeId || null;
-            
-            // Apply Toggles
-            if (parsed.toggles) {
-              chkAutoOpen.checked = !!parsed.toggles.autoOpen;
-              isViewMode = !!parsed.toggles.viewMode;
-              btnEditView.innerText = isViewMode ? 'Mode: View' : 'Mode: Edit';
-              chkCapsScroll.checked = !!parsed.toggles.capsScroll;
-              
-              chkWordWrap.checked = !!parsed.toggles.wordWrap;
-              chkWordWrap.onchange();
-
-              chkLineNums.checked = !!parsed.toggles.lineNums;
-              chkLineNums.onchange();
-
-              if (parsed.toggles.theme === 'dark') {
-                document.body.setAttribute('data-theme', 'dark');
-                themeToggle.innerText = 'Theme: Dark';
-              } else {
-                document.body.removeAttribute('data-theme');
-                themeToggle.innerText = 'Theme: Light';
-              }
-            }
-
-            renderTree();
-            if (parsed.activeEditorNodeId) {
-              openEditor(parsed.activeEditorNodeId);
-            } else {
-              closeEditor();
-            }
-          }
-        } catch (err) {
-          alert('Invalid JSON file format.');
-        }
-        fileInput.value = ''; // Reset input
-      };
-      reader.readAsText(file);
-    };
+      return now.toISOString().replace(/[:.]/g, '-');
+    }
 
     function downloadJSON(data, filename) {
       const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -813,8 +1223,81 @@
       URL.revokeObjectURL(url);
     }
 
-    // Initialize Empty State
+    btnSaveTree.onclick = () => {
+      downloadJSON(state.nodes, `${getTimestamp()}_nodetree.json`);
+    };
+
+    btnLoadTree.onclick = () => fileTreeInput.click();
+
+    fileTreeInput.onchange = (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (evt) => {
+        try {
+          const loadedNodes = JSON.parse(evt.target.result);
+          if (Array.isArray(loadedNodes)) {
+            state.nodes = loadedNodes;
+            state.selectedNodeId = null;
+            closeEditor();
+            renderTree();
+          }
+        } catch (err) {
+          alert('Invalid JSON file format for Node Tree.');
+        }
+      };
+      reader.readAsText(file);
+      fileTreeInput.value = '';
+    };
+
+    btnSaveSession.onclick = () => {
+      downloadJSON({ state: state }, 'session.json');
+    };
+
+    btnLoadSession.onclick = () => fileSessionInput.click();
+
+    fileSessionInput.onchange = (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (evt) => {
+        try {
+          const sessionData = JSON.parse(evt.target.result);
+          if (sessionData && sessionData.state) {
+            state = sessionData.state;
+
+            chkAutoOpen.checked = state.autoOpen;
+            chkCapsScroll.checked = state.capsScroll;
+            chkWordWrap.checked = state.wordWrap;
+            chkLineNumbers.checked = state.lineNumbers;
+            chkDnd.checked = state.dndEnabled;
+            chkDelWarn.checked = state.deleteWarning;
+
+            document.body.setAttribute('data-theme', state.darkMode ? 'dark' : 'light');
+            btnThemeToggle.textContent = state.darkMode ? '☀️ Light Mode' : '🌙 Dark Mode';
+            btnModeToggle.textContent = state.isEditView ? '👁 View Mode' : '✏️ Edit Mode';
+            editor.classList.toggle('word-wrap', state.wordWrap);
+
+            renderTree();
+
+            if (state.editingNodeId) {
+              const activeId = state.editingNodeId;
+              state.editingNodeId = null;
+              engageEditor(activeId);
+            } else {
+              closeEditor();
+            }
+          }
+        } catch (err) {
+          alert('Invalid Session JSON file.');
+        }
+      };
+      reader.readAsText(file);
+      fileSessionInput.value = '';
+    };
+
     renderTree();
-  </script>
+    leftPane.focus();
+</script>
 </body>
 </html>
