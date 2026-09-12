@@ -1,0 +1,820 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tree & Immersive Editor</title>
+  <style>
+    :root {
+      --bg-color: #f5f5f7;
+      --panel-bg: #ffffff;
+      --text-color: #1d1d1f;
+      --border-color: #d2d2d7;
+      --active-bg: #e8e8ed;
+      --selected-bg: #007aff;
+      --selected-text: #ffffff;
+      --btn-bg: #e5e5ea;
+      --btn-hover: #d1d1d6;
+      --editor-bg: #ffffff;
+      --line-num-color: #8e8e93;
+    }
+
+    [data-theme="dark"] {
+      --bg-color: #1e1e1e;
+      --panel-bg: #252526;
+      --text-color: #cccccc;
+      --border-color: #3c3c3c;
+      --active-bg: #37373d;
+      --selected-bg: #04395e;
+      --selected-text: #ffffff;
+      --btn-bg: #333333;
+      --btn-hover: #444444;
+      --editor-bg: #1e1e1e;
+      --line-num-color: #858585;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background-color: var(--bg-color);
+      color: var(--text-color);
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* Top Toolbar */
+    #toolbar {
+      background-color: var(--panel-bg);
+      border-bottom: 1px solid var(--border-color);
+      padding: 6px 12px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+      user-select: none;
+      z-index: 10;
+    }
+
+    .toolbar-group {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding-right: 10px;
+      border-right: 1px solid var(--border-color);
+    }
+    .toolbar-group:last-child { border-right: none; }
+
+    button {
+      background-color: var(--btn-bg);
+      color: var(--text-color);
+      border: 1px solid var(--border-color);
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 12px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    button:hover:not(:disabled) { background-color: var(--btn-hover); }
+    button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    label {
+      font-size: 12px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    /* Main Container */
+    #main-container {
+      display: flex;
+      flex: 1;
+      height: calc(100vh - 70px);
+      overflow: hidden;
+    }
+
+    /* Left Navigation Tree Pane */
+    #left-pane {
+      width: 300px;
+      min-width: 200px;
+      background-color: var(--panel-bg);
+      border-right: 1px solid var(--border-color);
+      overflow-y: auto;
+      padding: 8px 0;
+    }
+
+    .tree-node-wrapper {
+      user-select: none;
+    }
+
+    .tree-node {
+      display: flex;
+      align-items: center;
+      padding: 4px 8px;
+      cursor: pointer;
+      font-size: 13px;
+    }
+    .tree-node:hover { background-color: var(--active-bg); }
+    .tree-node.selected {
+      background-color: var(--selected-bg);
+      color: var(--selected-text);
+    }
+
+    .toggle-icon {
+      width: 16px;
+      text-align: center;
+      display: inline-block;
+      margin-right: 4px;
+      font-size: 10px;
+    }
+
+    .node-children {
+      padding-left: 16px;
+      display: none;
+    }
+    .node-children.expanded { display: block; }
+
+    .empty-tree-msg {
+      padding: 12px;
+      font-style: italic;
+      color: var(--line-num-color);
+      font-size: 13px;
+    }
+
+    /* Right Editor Pane */
+    #right-pane {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      background-color: var(--editor-bg);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .placeholder-msg {
+      margin: auto;
+      font-size: 16px;
+      color: var(--line-num-color);
+      user-select: none;
+    }
+
+    #editor-container {
+      display: flex;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+    }
+
+    #line-numbers {
+      width: 45px;
+      background-color: var(--panel-bg);
+      border-right: 1px solid var(--border-color);
+      color: var(--line-num-color);
+      font-family: monospace;
+      font-size: 13px;
+      line-height: 1.5;
+      padding: 8px 4px;
+      text-align: right;
+      user-select: none;
+      overflow: hidden;
+    }
+
+    #editor {
+      flex: 1;
+      width: 100%;
+      height: 100%;
+      border: none;
+      outline: none;
+      padding: 8px;
+      font-family: monospace;
+      font-size: 13px;
+      line-height: 1.5;
+      background-color: var(--editor-bg);
+      color: var(--text-color);
+      resize: none;
+      white-space: pre;
+      overflow: auto;
+    }
+    #editor.wrap { white-space: pre-wrap; word-break: break-word; }
+
+    /* Modal Dialog */
+    .modal-overlay {
+      position: fixed;
+      top: 0; left: 0; width: 100vw; height: 100vh;
+      background: rgba(0,0,0,0.4);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+    }
+    .modal-overlay.hidden { display: none; }
+
+    .modal {
+      background: var(--panel-bg);
+      border: 1px solid var(--border-color);
+      padding: 16px;
+      border-radius: 6px;
+      width: 350px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+    .modal h3 { font-size: 14px; margin-bottom: 12px; }
+    .modal-field { margin-bottom: 12px; }
+    .modal-field label { display: block; margin-bottom: 4px; }
+    .modal-field input[type="text"] {
+      width: 100%;
+      padding: 6px;
+      border: 1px solid var(--border-color);
+      background: var(--editor-bg);
+      color: var(--text-color);
+      border-radius: 4px;
+    }
+    .modal-radios { display: flex; gap: 12px; margin-bottom: 16px; }
+    .modal-actions { display: flex; justify-content: flex-end; gap: 8px; }
+
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+
+  <!-- Top Toolbar -->
+  <div id="toolbar">
+    <!-- View / State Controls -->
+    <div class="toolbar-group">
+      <button id="theme-toggle">Theme: Dark</button>
+      <label><input type="checkbox" id="chk-auto-open"> Auto open when clicked</label>
+    </div>
+
+    <div class="toolbar-group">
+      <button id="btn-edit-view">Mode: Edit</button>
+      <label><input type="checkbox" id="chk-caps-scroll"> Link CapsLock to SideScroll</label>
+      <label><input type="checkbox" id="chk-word-wrap"> Word Wrap</label>
+      <label><input type="checkbox" id="chk-line-nums" checked> Line Numbers</label>
+    </div>
+
+    <!-- Tree Action Controls (Context-Driven) -->
+    <div class="toolbar-group" id="tree-actions">
+      <button id="btn-add-root">+RootNode</button>
+      <button id="btn-add-child" disabled>+ChildNode</button>
+      <button id="btn-add-sibling" disabled>+SiblingNode</button>
+      <button id="btn-move-up" disabled>Move Up</button>
+      <button id="btn-move-down" disabled>Move Down</button>
+      <button id="btn-move-out" disabled>Move Out</button>
+      <button id="btn-move-in" disabled>Move In</button>
+      <button id="btn-create-from-text" disabled>Create node with selected text</button>
+    </div>
+
+    <!-- Storage / Import / Export -->
+    <div class="toolbar-group">
+      <button id="btn-save-tree">Save Node Tree</button>
+      <button id="btn-load-tree">Load Node Tree</button>
+      <button id="btn-save-session">Save Session</button>
+      <button id="btn-load-session">Load Session</button>
+      <input type="file" id="file-input" class="hidden" accept=".json">
+    </div>
+  </div>
+
+  <!-- Main Split Window -->
+  <div id="main-container">
+    <div id="left-pane">
+      <div id="tree-container"></div>
+    </div>
+    <div id="right-pane">
+      <div id="placeholder" class="placeholder-msg">Choose a node to edit</div>
+      <div id="editor-container" class="hidden">
+        <div id="line-numbers">1</div>
+        <textarea id="editor" spellcheck="false"></textarea>
+      </div>
+    </div>
+  </div>
+
+  <!-- Create Node from Selection Modal -->
+  <div id="modal-selected-text" class="modal-overlay hidden">
+    <div class="modal">
+      <h3>Create Node from Selected Text</h3>
+      <div class="modal-field">
+        <label for="modal-node-name">Node Name:</label>
+        <input type="text" id="modal-node-name">
+      </div>
+      <div class="modal-radios">
+        <label><input type="radio" name="node-mode" value="name" checked> Use selected as name</label>
+        <label><input type="radio" name="node-mode" value="content"> Use selected as content</label>
+      </div>
+      <div class="modal-actions">
+        <button id="btn-modal-cancel">Cancel</button>
+        <button id="btn-modal-confirm">Create</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // System State
+    let treeData = [];
+    let selectedNodeId = null;
+    let activeEditorNodeId = null;
+    let isViewMode = false;
+    let pendingFileAction = null; // 'tree' or 'session'
+
+    // DOM Elements
+    const treeContainer = document.getElementById('tree-container');
+    const placeholder = document.getElementById('placeholder');
+    const editorContainer = document.getElementById('editor-container');
+    const editor = document.getElementById('editor');
+    const lineNumbers = document.getElementById('line-numbers');
+    
+    // Controls
+    const chkAutoOpen = document.getElementById('chk-auto-open');
+    const btnEditView = document.getElementById('btn-edit-view');
+    const chkCapsScroll = document.getElementById('chk-caps-scroll');
+    const chkWordWrap = document.getElementById('chk-word-wrap');
+    const chkLineNums = document.getElementById('chk-line-nums');
+    const themeToggle = document.getElementById('theme-toggle');
+    const fileInput = document.getElementById('file-input');
+
+    // Context Buttons
+    const btnAddRoot = document.getElementById('btn-add-root');
+    const btnAddChild = document.getElementById('btn-add-child');
+    const btnAddSibling = document.getElementById('btn-add-sibling');
+    const btnMoveUp = document.getElementById('btn-move-up');
+    const btnMoveDown = document.getElementById('btn-move-down');
+    const btnMoveOut = document.getElementById('btn-move-out');
+    const btnMoveIn = document.getElementById('btn-move-in');
+    const btnCreateFromText = document.getElementById('btn-create-from-text');
+
+    // Modal Elements
+    const modal = document.getElementById('modal-selected-text');
+    const modalNodeName = document.getElementById('modal-node-name');
+    const modalRadioName = document.querySelector('input[name="node-mode"][value="name"]');
+    const modalRadioContent = document.querySelector('input[name="node-mode"][value="content"]');
+    const btnModalCancel = document.getElementById('btn-modal-cancel');
+    const btnModalConfirm = document.getElementById('btn-modal-confirm');
+
+    // Helper: Unique ID generator
+    function generateId() {
+      return 'node_' + Math.random().toString(36).substr(2, 9);
+    }
+
+    // Helper: Recursively search nodes
+    function findNodeAndParent(id, nodes = treeData, parent = null) {
+      for (let i = 0; i < nodes.length; i++) {
+        if (nodes[i].id === id) {
+          return { node: nodes[i], parent: parent, index: i, siblings: nodes };
+        }
+        if (nodes[i].children && nodes[i].children.length > 0) {
+          const res = findNodeAndParent(id, nodes[i].children, nodes[i]);
+          if (res) return res;
+        }
+      }
+      return null;
+    }
+
+    // Render Navigation Tree
+    function renderTree() {
+      treeContainer.innerHTML = '';
+      if (treeData.length === 0) {
+        treeContainer.innerHTML = '<div class="empty-tree-msg">Create a node to proceed</div>';
+        selectedNodeId = null;
+        closeEditor();
+        updateToolbarState();
+        return;
+      }
+
+      function buildNodeUI(node) {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'tree-node-wrapper';
+
+        const nodeEl = document.createElement('div');
+        nodeEl.className = 'tree-node' + (node.id === selectedNodeId ? ' selected' : '');
+        
+        const hasChildren = node.children && node.children.length > 0;
+        const toggleIcon = document.createElement('span');
+        toggleIcon.className = 'toggle-icon';
+        toggleIcon.innerText = hasChildren ? (node.expanded ? '▼' : '►') : ' ';
+        
+        toggleIcon.onclick = (e) => {
+          e.stopPropagation();
+          if (hasChildren) {
+            node.expanded = !node.expanded;
+            renderTree();
+          }
+        };
+
+        const label = document.createElement('span');
+        label.innerText = node.name;
+
+        nodeEl.appendChild(toggleIcon);
+        nodeEl.appendChild(label);
+
+        nodeEl.onclick = (e) => {
+          e.stopPropagation();
+          selectNode(node.id);
+        };
+
+        wrapper.appendChild(nodeEl);
+
+        if (hasChildren) {
+          const childrenCont = document.createElement('div');
+          childrenCont.className = 'node-children' + (node.expanded ? ' expanded' : '');
+          node.children.forEach(child => {
+            childrenCont.appendChild(buildNodeUI(child));
+          });
+          wrapper.appendChild(childrenCont);
+        }
+
+        return wrapper;
+      }
+
+      treeData.forEach(node => {
+        treeContainer.appendChild(buildNodeUI(node));
+      });
+
+      updateToolbarState();
+    }
+
+    // Select Node
+    function selectNode(id) {
+      selectedNodeId = id;
+      renderTree();
+
+      if (chkAutoOpen.checked) {
+        openEditor(id);
+      }
+    }
+
+    // Toggle/Open/Close Editor Logic
+    function openEditor(id) {
+      if (!id) return;
+      activeEditorNodeId = id;
+      const target = findNodeAndParent(id);
+      if (!target) return;
+
+      placeholder.classList.add('hidden');
+      editorContainer.classList.remove('hidden');
+      editor.value = target.node.content || '';
+      editor.readOnly = isViewMode;
+      updateLineNumbers();
+    }
+
+    function closeEditor() {
+      activeEditorNodeId = null;
+      editorContainer.classList.add('hidden');
+      placeholder.classList.remove('hidden');
+      placeholder.innerText = treeData.length === 0 ? 'Create a node to proceed' : 'Choose a node to edit';
+    }
+
+    function toggleEditor(id) {
+      if (activeEditorNodeId === id) {
+        closeEditor();
+      } else {
+        openEditor(id);
+      }
+    }
+
+    // Sync content from Editor to Memory
+    editor.addEventListener('input', () => {
+      if (activeEditorNodeId) {
+        const target = findNodeAndParent(activeEditorNodeId);
+        if (target) {
+          target.node.content = editor.value;
+        }
+      }
+      updateLineNumbers();
+      updateCreateFromTextBtn();
+    });
+
+    // Editor Scroll & Line Numbers
+    function updateLineNumbers() {
+      if (!chkLineNums.checked) return;
+      const lines = editor.value.split('\n').length;
+      lineNumbers.innerHTML = Array.from({ length: lines }, (_, i) => i + 1).join('<br>');
+    }
+
+    editor.addEventListener('scroll', () => {
+      lineNumbers.scrollTop = editor.scrollTop;
+    });
+
+    // Mouse Selection in Editor
+    editor.addEventListener('selectionchange', updateCreateFromTextBtn);
+    editor.addEventListener('keyup', updateCreateFromTextBtn);
+    editor.addEventListener('mouseup', updateCreateFromTextBtn);
+
+    function updateCreateFromTextBtn() {
+      const selectedText = editor.value.substring(editor.selectionStart, editor.selectionEnd).trim();
+      btnCreateFromText.disabled = !selectedText || isViewMode;
+    }
+
+    // Keyboard Shortcuts (Ctrl + Enter to toggle active editor on selected node)
+    document.addEventListener('keydown', (e) => {
+      if (e.ctrlKey && e.key === 'Enter') {
+        if (selectedNodeId) {
+          e.preventDefault();
+          toggleEditor(selectedNodeId);
+        }
+      }
+    });
+
+    // Side-scroll on CapsLock + Vertical Scroll
+    editor.addEventListener('wheel', (e) => {
+      if (chkCapsScroll.checked && e.getModifierState('CapsLock')) {
+        if (e.deltaY !== 0) {
+          e.preventDefault();
+          editor.scrollLeft += e.deltaY;
+        }
+      }
+    }, { passive: false });
+
+    // Enable / Disable Context Buttons
+    function updateToolbarState() {
+      const hasSelection = selectedNodeId !== null;
+      btnAddChild.disabled = !hasSelection;
+      btnAddSibling.disabled = !hasSelection;
+      
+      if (!hasSelection) {
+        btnMoveUp.disabled = true;
+        btnMoveDown.disabled = true;
+        btnMoveOut.disabled = true;
+        btnMoveIn.disabled = true;
+        return;
+      }
+
+      const target = findNodeAndParent(selectedNodeId);
+      if (!target) return;
+
+      btnMoveUp.disabled = target.index === 0;
+      btnMoveDown.disabled = target.index === target.siblings.length - 1;
+      btnMoveOut.disabled = target.parent === null;
+      btnMoveIn.disabled = target.index === 0;
+    }
+
+    // Tree Operation Handlers
+    btnAddRoot.onclick = () => {
+      const name = prompt('Enter Root Node Name:', 'New Root');
+      if (!name) return;
+      const newNode = { id: generateId(), name: name, content: '', children: [], expanded: true };
+      treeData.push(newNode);
+      selectNode(newNode.id);
+    };
+
+    btnAddChild.onclick = () => {
+      if (!selectedNodeId) return;
+      const target = findNodeAndParent(selectedNodeId);
+      const name = prompt('Enter Child Node Name:', 'New Child');
+      if (!name) return;
+      const newNode = { id: generateId(), name: name, content: '', children: [], expanded: true };
+      target.node.children = target.node.children || [];
+      target.node.children.push(newNode);
+      target.node.expanded = true;
+      selectNode(newNode.id);
+    };
+
+    btnAddSibling.onclick = () => {
+      if (!selectedNodeId) return;
+      const target = findNodeAndParent(selectedNodeId);
+      const name = prompt('Enter Sibling Node Name:', 'New Sibling');
+      if (!name) return;
+      const newNode = { id: generateId(), name: name, content: '', children: [], expanded: true };
+      target.siblings.splice(target.index + 1, 0, newNode);
+      selectNode(newNode.id);
+    };
+
+    btnMoveUp.onclick = () => {
+      const target = findNodeAndParent(selectedNodeId);
+      if (target && target.index > 0) {
+        const temp = target.siblings[target.index];
+        target.siblings[target.index] = target.siblings[target.index - 1];
+        target.siblings[target.index - 1] = temp;
+        renderTree();
+      }
+    };
+
+    btnMoveDown.onclick = () => {
+      const target = findNodeAndParent(selectedNodeId);
+      if (target && target.index < target.siblings.length - 1) {
+        const temp = target.siblings[target.index];
+        target.siblings[target.index] = target.siblings[target.index + 1];
+        target.siblings[target.index + 1] = temp;
+        renderTree();
+      }
+    };
+
+    btnMoveOut.onclick = () => {
+      const target = findNodeAndParent(selectedNodeId);
+      if (target && target.parent) {
+        const parentTarget = findNodeAndParent(target.parent.id);
+        target.siblings.splice(target.index, 1);
+        parentTarget.siblings.splice(parentTarget.index + 1, 0, target.node);
+        renderTree();
+      }
+    };
+
+    btnMoveIn.onclick = () => {
+      const target = findNodeAndParent(selectedNodeId);
+      if (target && target.index > 0) {
+        const prevSibling = target.siblings[target.index - 1];
+        target.siblings.splice(target.index, 1);
+        prevSibling.children = prevSibling.children || [];
+        prevSibling.children.push(target.node);
+        prevSibling.expanded = true;
+        renderTree();
+      }
+    };
+
+    // Mode / Display Toggles
+    btnEditView.onclick = () => {
+      isViewMode = !isViewMode;
+      btnEditView.innerText = isViewMode ? 'Mode: View' : 'Mode: Edit';
+      editor.readOnly = isViewMode;
+      updateCreateFromTextBtn();
+    };
+
+    chkWordWrap.onchange = () => {
+      if (chkWordWrap.checked) {
+        editor.classList.add('wrap');
+      } else {
+        editor.classList.remove('wrap');
+      }
+    };
+
+    chkLineNums.onchange = () => {
+      lineNumbers.style.display = chkLineNums.checked ? 'block' : 'none';
+      if (chkLineNums.checked) updateLineNumbers();
+    };
+
+    themeToggle.onclick = () => {
+      const isDark = document.body.getAttribute('data-theme') === 'dark';
+      if (isDark) {
+        document.body.removeAttribute('data-theme');
+        themeToggle.innerText = 'Theme: Light';
+      } else {
+        document.body.setAttribute('data-theme', 'dark');
+        themeToggle.innerText = 'Theme: Dark';
+      }
+    };
+
+    // Modal Dialog Logic (Create Node with Selected Text)
+    let originalSelectedText = "";
+
+    btnCreateFromText.onclick = () => {
+      originalSelectedText = editor.value.substring(editor.selectionStart, editor.selectionEnd).trim();
+      if (!originalSelectedText) return;
+
+      modalNodeName.value = originalSelectedText;
+      modalRadioName.checked = true;
+      modalNodeName.readOnly = true;
+
+      modal.classList.remove('hidden');
+    };
+
+    modalRadioName.onchange = () => {
+      modalNodeName.value = originalSelectedText;
+      modalNodeName.readOnly = true;
+    };
+
+    modalRadioContent.onchange = () => {
+      modalNodeName.readOnly = false;
+      if (modalNodeName.value === originalSelectedText) {
+        modalNodeName.value = "";
+      }
+    };
+
+    btnModalCancel.onclick = () => {
+      modal.classList.add('hidden');
+    };
+
+    btnModalConfirm.onclick = () => {
+      const name = modalNodeName.value.trim();
+      if (!name) {
+        alert('Node name is required.');
+        return;
+      }
+
+      const isNameMode = modalRadioName.checked;
+      const newNode = {
+        id: generateId(),
+        name: name,
+        content: isNameMode ? "" : originalSelectedText,
+        children: [],
+        expanded: true
+      };
+
+      if (selectedNodeId) {
+        const target = findNodeAndParent(selectedNodeId);
+        target.node.children = target.node.children || [];
+        target.node.children.push(newNode);
+        target.node.expanded = true;
+      } else {
+        treeData.push(newNode);
+      }
+
+      modal.classList.add('hidden');
+      selectNode(newNode.id);
+    };
+
+    // Storage: Save & Load Node Tree
+    document.getElementById('btn-save-tree').onclick = () => {
+      const now = new Date();
+      const timestamp = now.toISOString().replace(/[:.]/g, '-');
+      const filename = `${timestamp}_nodetree.json`;
+      downloadJSON(treeData, filename);
+    };
+
+    document.getElementById('btn-load-tree').onclick = () => {
+      pendingFileAction = 'tree';
+      fileInput.click();
+    };
+
+    // Storage: Save & Load Full Session
+    document.getElementById('btn-save-session').onclick = () => {
+      const sessionData = {
+        treeData: treeData,
+        selectedNodeId: selectedNodeId,
+        activeEditorNodeId: activeEditorNodeId,
+        toggles: {
+          autoOpen: chkAutoOpen.checked,
+          viewMode: isViewMode,
+          capsScroll: chkCapsScroll.checked,
+          wordWrap: chkWordWrap.checked,
+          lineNums: chkLineNums.checked,
+          theme: document.body.getAttribute('data-theme') || 'light'
+        }
+      };
+      downloadJSON(sessionData, 'session.json');
+    };
+
+    document.getElementById('btn-load-session').onclick = () => {
+      pendingFileAction = 'session';
+      fileInput.click();
+    };
+
+    fileInput.onchange = (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        try {
+          const parsed = JSON.parse(event.target.result);
+          if (pendingFileAction === 'tree') {
+            treeData = Array.isArray(parsed) ? parsed : [];
+            selectedNodeId = null;
+            closeEditor();
+            renderTree();
+          } else if (pendingFileAction === 'session') {
+            treeData = parsed.treeData || [];
+            selectedNodeId = parsed.selectedNodeId || null;
+            
+            // Apply Toggles
+            if (parsed.toggles) {
+              chkAutoOpen.checked = !!parsed.toggles.autoOpen;
+              isViewMode = !!parsed.toggles.viewMode;
+              btnEditView.innerText = isViewMode ? 'Mode: View' : 'Mode: Edit';
+              chkCapsScroll.checked = !!parsed.toggles.capsScroll;
+              
+              chkWordWrap.checked = !!parsed.toggles.wordWrap;
+              chkWordWrap.onchange();
+
+              chkLineNums.checked = !!parsed.toggles.lineNums;
+              chkLineNums.onchange();
+
+              if (parsed.toggles.theme === 'dark') {
+                document.body.setAttribute('data-theme', 'dark');
+                themeToggle.innerText = 'Theme: Dark';
+              } else {
+                document.body.removeAttribute('data-theme');
+                themeToggle.innerText = 'Theme: Light';
+              }
+            }
+
+            renderTree();
+            if (parsed.activeEditorNodeId) {
+              openEditor(parsed.activeEditorNodeId);
+            } else {
+              closeEditor();
+            }
+          }
+        } catch (err) {
+          alert('Invalid JSON file format.');
+        }
+        fileInput.value = ''; // Reset input
+      };
+      reader.readAsText(file);
+    };
+
+    function downloadJSON(data, filename) {
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    // Initialize Empty State
+    renderTree();
+  </script>
+</body>
+</html>
